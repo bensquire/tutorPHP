@@ -98,4 +98,13 @@ class TutorPHPTest extends PHPUnit_Framework_TestCase
     }
 
 
+    public function testBasicLandWrapper()
+    {
+        $aCard = $this->oTutorPHP->fetchCard(249728);
+        var_dump($aCard);
+        $this->assertTrue($aCard['text'][0] === '{R}');
+
+    }
+
+
 }
