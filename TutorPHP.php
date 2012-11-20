@@ -654,14 +654,22 @@ class TutorPHP
         $aText = $aMatches = array();
         $aXPathText = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_textRow"]/div[@class="value"]/div[@class="cardtextbox"]');
         foreach ($aXPathText as $sTmp) {
-            $sLine = trim($this->nodeContent($sTmp));
+			$sLine = trim($this->nodeContent($sTmp));
 
-            $sSearch = '/<img src="[^"]+" alt="([^"]+)" align="absbottom">/';
-            $sReplace = '{$1}';
-            $sLine = preg_replace($sSearch, $sReplace, $sLine);
+            //Assume its a land card, with only the land symbol
+            if (strlen($sLine) === 1) {
+                $sLine = '{' . $sLine . '}';
+            } else {
+                //<img src="/Handlers/Image.ashx?size=small&amp;name=W&amp;type=symbol" alt="White" align="absbottom">
+                $sSearch = '/<img src="[^"]+" alt="([^"]+)" align="absbottom">/';
+                $sReplace = '{$1}';
+                $sLine = preg_replace($sSearch, $sReplace, $sLine);
 
-            //Replace extracted symbols with common symbols
-            $aText[] = preg_replace(array_keys($this->aSymbols), array_values($this->aSymbols), $sLine);
+                //Replace extracted symbols with common symbols
+                $sLine = preg_replace(array_keys($this->aSymbols), array_values($this->aSymbols), $sLine);
+            }
+            
+            $aText[] = $sLine;
         }
 
         return $aText;
