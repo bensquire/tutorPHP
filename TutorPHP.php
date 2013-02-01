@@ -8,7 +8,7 @@ class TutorPHP
     const sDivPrefix = 'ctl00_ctl00_ctl00_MainContent_SubContent_SubContent';
     const sPaginationControl = 'ctl00_ctl00_ctl00_MainContent_SubContent_topPagingControlsContainer';
 
-    protected $aSymbols = array(
+   protected $aSymbols = array(
         '{White}' => 'W',
         '{White or Blue}' => 'WU',
         '{White or Green}' => 'WG',
@@ -26,15 +26,18 @@ class TutorPHP
         '{Phyrexian Black}' => 'B/P',
         '{Red}' => 'R',
         '{Red or Green}' => 'RG',
+        '{Red or White}' => 'RW',
         '{Phyrexian Red}' => 'R/P',
         '{Green}' => 'G',
         '{Green or White}' => 'GW',
+        '{Green or Blue}' => 'GU',
         '{Phyrexian Green}' => 'G/P',
         '{Two}' => '2',
         '{Variable Colorless}' => 'X',
         '{Snow}' => 'S',
         '{Tap}' => 'T',
         '{Untap}' => 'Q');
+        
     protected $aSupertypes = array(
         'Basic',
         'Legendary',
@@ -654,7 +657,7 @@ class TutorPHP
         $aText = $aMatches = array();
         $aXPathText = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_textRow"]/div[@class="value"]/div[@class="cardtextbox"]');
         foreach ($aXPathText as $sTmp) {
-			$sLine = trim($this->nodeContent($sTmp));
+            $sLine = trim($this->nodeContent($sTmp));
 
             //Assume its a land card, with only the land symbol
             if (strlen($sLine) === 1) {
@@ -668,7 +671,7 @@ class TutorPHP
                 //Replace extracted symbols with common symbols
                 $sLine = preg_replace(array_keys($this->aSymbols), array_values($this->aSymbols), $sLine);
             }
-            
+
             $aText[] = $sLine;
         }
 
@@ -806,7 +809,7 @@ class TutorPHP
         foreach ($aXPathArtist as $sTmp) {
             return trim($sTmp->nodeValue);
         }
-        
+
         return;
 
     }
@@ -857,7 +860,7 @@ class TutorPHP
         foreach ($aXPathCardID as $sTmp) {
             return (int) trim(str_replace('/Pages/Card/Discussion.aspx?multiverseid=', '', $sTmp->nodeValue));
         }
-        
+
         return;
 
     }
@@ -988,19 +991,5 @@ class TutorPHP
 
 
 }
-
-//$oTutor = new TutorPHP();
-//var_dump($oTutor->fetchCard(194123)); //Watermark
-//var_dump($oTutor->fetchCard(130680)); //Color Indicator
-//var_dump($oTutor->fetchCard(158903)); //Versions
-//var_dump($oTutor->fetchCard(292976)); //Dual Face (Life/Death)
-//var_dump($oTutor->fetchCard(262875)); //Double Sided
-//var_dump($oTutor->fetchCard(262675)); //Dual Face with left RUling
-//var_dump($oTutor->fetchCard(192218)); //Planeswalker
-//var_dump($oTutor->fetchCard(23040)); //Single Side
-//var_dump($oTutor->fetchCard(23040)); //Single Side
-//var_dump($oTutor->fetchSetCardIDs('Archenemy')); //Dual Face
-//var_dump($oTutor->fetchCardLegalities(29947)); //Card Legalities
-//die();
 
 ?>
