@@ -8,6 +8,7 @@ class TutorPHPTest extends PHPUnit_Framework_TestCase
 
     public function setUp()
     {
+        $this->getTestResultObject()->setTimeoutForSmallTests(5);
         $this->oTutorPHP = new TutorPHP();
 
     }
@@ -80,12 +81,19 @@ class TutorPHPTest extends PHPUnit_Framework_TestCase
 
     }
 
-
     public function testExtractDualFace()
     {
 
         $aCard = $this->oTutorPHP->fetchCard(262675);
         $this->assertTrue($aCard["name"] === 'Afflicted Deserter' && $aCard['alternate_side']['name'] === 'Werewolf Ransacker');
+
+    }
+
+    public function testExtractDualFaceArtifact()
+    {
+
+        $aCard = $this->oTutorPHP->fetchCard(244738);
+        $this->assertTrue($aCard["name"] === 'Elbrus, the Binding Blade' && $aCard['alternate_side']['name'] === 'Withengar Unbound');
 
     }
 
@@ -97,11 +105,9 @@ class TutorPHPTest extends PHPUnit_Framework_TestCase
 
     }
 
-
     public function testBasicLandWrapper()
     {
         $aCard = $this->oTutorPHP->fetchCard(249728);
-        var_dump($aCard);
         $this->assertTrue($aCard['text'][0] === '{R}');
 
     }

@@ -79,7 +79,7 @@ class TutorPHP
 
         if ($this->isDoubleSided($oXPath)) {
             $bDoubleSided = true;
-            $this->sPrefix = '_ctl05';
+            $this->sPrefix = '_ctl07';
         }
 
         //Extract Name
@@ -293,7 +293,7 @@ class TutorPHP
     public function extractAlternateSide($oXPath)
     {
 
-        $this->sPrefix = '_ctl06';
+        $this->sPrefix = '_ctl08';
         $aCardDetails['name'] = $this->extractName($oXPath);
 
         //Extract Types string
@@ -434,7 +434,7 @@ class TutorPHP
      */
     protected function isDoubleSided($oXPathContent)
     {
-        $oXPathResult = $oXPathContent->query('//div[@id="' . self::sDivPrefix . '_ctl05_nameRow"]/div[@class="value"]');
+        $oXPathResult = $oXPathContent->query('//div[@id="' . self::sDivPrefix . '_ctl07_nameRow"]/div[@class="value"]');
         foreach ($oXPathResult AS $sResult) {
             return true;
         }

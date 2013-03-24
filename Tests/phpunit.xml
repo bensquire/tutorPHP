@@ -1,0 +1,13 @@
+<phpunit bootstrap="bootstrap.php"
+		 stopOnFailure="true"
+		 colors="true"
+		 strict="true">
+
+	<testsuite name="Application Test Suite">
+		<directory>.</directory>
+	</testsuite>
+
+	<filter>
+
+	</filter>
+</phpunit>
