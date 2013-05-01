@@ -9,7 +9,7 @@ class TutorPHPTest extends PHPUnit_Framework_TestCase
     public function setUp()
     {
         $this->getTestResultObject()->setTimeoutForSmallTests(5);
-        $this->oTutorPHP = new TutorPHP();
+        $this->oTutorPHP = new TutorPHP(array('debug' => false));
 
     }
 
@@ -59,7 +59,6 @@ class TutorPHPTest extends PHPUnit_Framework_TestCase
 
     public function testfetchCardPlaneswalker()
     {
-
         $aCard = $this->oTutorPHP->fetchCard(192218);
         $this->assertTrue($aCard['name'] == 'Gideon Jura');
 
@@ -85,7 +84,9 @@ class TutorPHPTest extends PHPUnit_Framework_TestCase
     {
 
         $aCard = $this->oTutorPHP->fetchCard(262675);
-        $this->assertTrue($aCard["name"] === 'Afflicted Deserter' && $aCard['alternate_side']['name'] === 'Werewolf Ransacker');
+        $this->assertTrue(
+            $aCard["name"] === 'Afflicted Deserter' && $aCard['alternate_side']['name'] === 'Werewolf Ransacker'
+        );
 
     }
 
@@ -93,7 +94,9 @@ class TutorPHPTest extends PHPUnit_Framework_TestCase
     {
 
         $aCard = $this->oTutorPHP->fetchCard(244738);
-        $this->assertTrue($aCard["name"] === 'Elbrus, the Binding Blade' && $aCard['alternate_side']['name'] === 'Withengar Unbound');
+        $this->assertTrue(
+            $aCard["name"] === 'Elbrus, the Binding Blade' && $aCard['alternate_side']['name'] === 'Withengar Unbound'
+        );
 
     }
 
@@ -108,9 +111,33 @@ class TutorPHPTest extends PHPUnit_Framework_TestCase
     public function testBasicLandWrapper()
     {
         $aCard = $this->oTutorPHP->fetchCard(249728);
-        $this->assertTrue($aCard['text'][0] === '{R}');
+        $this->assertTrue(count($aCard['text']) === 0);
 
     }
 
+    public function testFuseDragonsMazeCard()
+    {
+        $aCard = $this->oTutorPHP->fetchCard(369041);
+        $this->assertTrue(count($aCard['text']) === 2);
 
+    }
+
+    public function testFetchRulings()
+    {
+        $aCard = $this->oTutorPHP->fetchCard(369041);
+        $this->assertTrue(count($aCard['rulings']) > 0);
+
+    }
+
+    public function testFetchLegalities()
+    {
+        $aLegalities = $this->oTutorPHP->fetchCardLegalities(1821);
+        $this->assertTrue(count($aLegalities) > 0);
+    }
+
+    public function testExtractSetIDs()
+    {
+        $aCardIds = $this->oTutorPHP->fetchSetCardIDs('Dragon\'s Maze');
+        $this->assertTrue(count($aCardIds) === 156);
+    }
 }

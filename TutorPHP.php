@@ -2,13 +2,12 @@
 
 class TutorPHP
 {
+    const GATHERER_BASE_URL = 'http://gatherer.wizards.com/Pages/';
+    const GATHERER_IMAGE_URL = 'http://gatherer.wizards.com/Handlers/Image.ashx?type=card&multiverseid=';
+    const DIV_PREFIX = 'ctl00_ctl00_ctl00_MainContent_SubContent_SubContent';
+    const PAGINATION_CONTROL = 'ctl00_ctl00_ctl00_MainContent_SubContent_topPagingControlsContainer';
 
-    const sGathererBaseURL = 'http://gatherer.wizards.com/Pages/';
-    const sGathererImageURL = 'http://gatherer.wizards.com/Handlers/Image.ashx?type=card&multiverseid=';
-    const sDivPrefix = 'ctl00_ctl00_ctl00_MainContent_SubContent_SubContent';
-    const sPaginationControl = 'ctl00_ctl00_ctl00_MainContent_SubContent_topPagingControlsContainer';
-
-   protected $aSymbols = array(
+    protected $aSymbols = array(
         '{White}' => 'W',
         '{White or Blue}' => 'WU',
         '{White or Green}' => 'WG',
@@ -36,9 +35,10 @@ class TutorPHP
         '{Variable Colorless}' => 'X',
         '{Snow}' => 'S',
         '{Tap}' => 'T',
-        '{Untap}' => 'Q');
-        
-    protected $aSupertypes = array(
+        '{Untap}' => 'Q'
+    );
+
+    protected $aSuperTypes = array(
         'Basic',
         'Legendary',
         'Ongoing',
@@ -47,10 +47,56 @@ class TutorPHP
     );
     protected $sPrefix = '';
 
+    protected $bDebug = false;
 
-    public function __construct()
+    public function __construct($aParams = array())
     {
-        
+        if (isset($aParams['debug'])) {
+            $this->bDebug = (bool)$aParams['debug'];
+        }
+
+        $this->debug('TutorPHP Instantiated');
+    }
+
+
+    /**
+     * Echo's out the debug message as passed in, it $this->bDebug is true
+     *
+     * @param string $sMessage
+     * @return bool
+     */
+    public function debug($sMessage = '')
+    {
+        if ($this->bDebug && strlen($sMessage) > 0) {
+            echo date('Y-m-d H:i:s') . ' - ' . $sMessage . '<br />';
+            return true;
+        }
+
+        return false;
+    }
+
+
+    /**
+     * Returns the card image URL for the provided ID, optionally rotated
+     *
+     * @param int $iCardID
+     * @param int $iOrientation
+     * @return string
+     * @throws Exception
+     */
+    public function fetchCardImageUrl($iCardID, $iOrientation = 0)
+    {
+        $this->debug('Returning Card Image URL');
+
+        if (!is_int($iCardID)) {
+            throw new Exception('Invalid CardID');
+        }
+
+        if (!is_int($iOrientation)) {
+            throw new Exception('Invalid Orientation value');
+        }
+
+        return self::GATHERER_IMAGE_URL . $iCardID . '&options=rotate' . $iOrientation;
     }
 
 
@@ -60,9 +106,11 @@ class TutorPHP
      * @param type $iCardID The Card ID we require information on
      *
      * @throws Exception
+     * @return array
      */
     public function fetchCard($iCardID)
     {
+        $this->debug('Fetching Card: ' . $iCardID);
 
         if (strlen($iCardID) === 0 || !is_int($iCardID)) {
             throw new Exception('Invalid Card ID');
@@ -74,7 +122,7 @@ class TutorPHP
         libxml_clear_errors();
         libxml_use_internal_errors(true);
         $oHTML = new DOMDocument();
-        $oHTML->loadHTML($this->fetchPage(self::sGathererBaseURL . 'Card/Details.aspx?multiverseid=' . (int) $iCardID));
+        $oHTML->loadHTML($this->fetchPage(self::GATHERER_BASE_URL . 'Card/Details.aspx?multiverseid=' . (int)$iCardID));
         $oXPath = new DOMXPath($oHTML);
 
         if ($this->isDoubleSided($oXPath)) {
@@ -161,10 +209,10 @@ class TutorPHP
         $aCardDetails['card_id'] = $this->extractCardID($oXPath);
 
         //gatherer_url
-        $aCardDetails['gatherer_url'] = self::sGathererBaseURL . 'Card/Details.aspx?multiverseid=' . $iCardID;
+        $aCardDetails['gatherer_url'] = self::GATHERER_BASE_URL . 'Card/Details.aspx?multiverseid=' . $iCardID;
 
         //image_url
-        $aCardDetails['image_url'] = self::sGathererImageURL . $iCardID;
+        $aCardDetails['image_url'] = $this->fetchCardImageUrl($iCardID);
 
         //Extract Alternate Side (Werewolves, same page)
         if ($bDoubleSided) {
@@ -176,27 +224,28 @@ class TutorPHP
 
         libxml_use_internal_errors(false);
 
-        foreach ($aCardDetails AS $k => $v) {
+        foreach ($aCardDetails as $k => $v) {
             if (!is_array($v) && strlen($v) === 0) {
                 unset($aCardDetails[$k]);
             }
         }
 
+        $this->debug('Finished Fetching Card: ' . $iCardID);
         return $aCardDetails;
-
     }
 
 
     /**
      * Extracts an array of card legalities for the provided card id
      *
-     * @param int $iCardID	The Card ID we want legalities for
+     * @param int $iCardID    The Card ID we want legalities for
      *
      * @return type
      * @throws Exception
      */
     public function fetchCardLegalities($iCardID)
     {
+        $this->debug('Extracting Cards Legalities: ' . $iCardID);
 
         if (strlen($iCardID) === 0 || !is_int($iCardID)) {
             throw new Exception('Invalid Card ID');
@@ -205,31 +254,39 @@ class TutorPHP
         libxml_clear_errors();
         libxml_use_internal_errors(true);
         $oHTML = new DOMDocument();
-        $oHTML->loadHTML($this->fetchPage(self::sGathererBaseURL . 'Card/Printings.aspx?multiverseid=' . (int) $iCardID));
+        $oHTML->loadHTML(
+            $this->fetchPage(self::GATHERER_BASE_URL . 'Card/Printings.aspx?multiverseid=' . (int)$iCardID)
+        );
         $oXPath = new DOMXPath($oHTML);
 
         //Extract Rules
-        $aLegalityRows = $oXPath->query('//p[@class="text" and contains(., "This card has restrictions in the following formats:")]/following-sibling::table/tr');
+        $aLegalityRows = $oXPath->query(
+            '//p[@class="text" and contains(., "This card has restrictions in the following formats:")]/following-sibling::table/tr'
+        );
         $iRow = 0;
         $aHeaders = array();
-        $aLegalties = array();
+        $aLegalities = array();
         foreach ($aLegalityRows as $sTmp) {
             $aLegalityColumn = $oXPath->query('./td', $sTmp);
             $x = 0;
-            foreach ($aLegalityColumn AS $sColumnRow) {
+            foreach ($aLegalityColumn as $sColumnRow) {
                 if ($iRow === 0) {
                     $aHeaders[$x] = trim($sColumnRow->nodeValue);
                 } else {
-                    $aLegalties[$iRow][$aHeaders[$x]] = trim($sColumnRow->nodeValue);
+                    $aLegalities[$iRow][$aHeaders[$x]] = trim($sColumnRow->nodeValue);
                 }
                 $x++;
             }
             $iRow++;
         }
 
-        libxml_use_internal_errors(false);
-        return $aLegalties;
+        if (count($aLegalities) === 1 && $aLegalities[1]['Format'] == 'This card is not playable in any formats.') {
+            return array();
+        }
 
+
+        libxml_use_internal_errors(false);
+        return $aLegalities;
     }
 
 
@@ -243,6 +300,8 @@ class TutorPHP
      */
     public function fetchSetCardIDs($sSetName)
     {
+        $this->debug('Extracting Sets Card IDs: ' . $sSetName);
+
         if (strlen($sSetName) === 0) {
             throw new Exception('Invalid Set Name.');
         }
@@ -250,13 +309,17 @@ class TutorPHP
         libxml_clear_errors();
         libxml_use_internal_errors(true);
         $oHTML = new DOMDocument();
-        $oHTML->loadHTML($this->fetchPage(self::sGathererBaseURL . 'Search/Default.aspx?set=[%22' . rawurlencode($sSetName) . '%22]'));
+        $oHTML->loadHTML(
+            $this->fetchPage(
+                self::GATHERER_BASE_URL . 'Search/Default.aspx?set=[%22' . rawurlencode($sSetName) . '%22]'
+            )
+        );
         $oXPath = new DOMXPath($oHTML);
 
         //Extracts the pagination
-        $aCardPages = $oXPath->query('//div[@id="' . self::sPaginationControl . '"]/a/@href');
+        $aCardPages = $oXPath->query('//div[@id="' . self::PAGINATION_CONTROL . '"]/a/@href');
         $iTotalPages = 0;
-        foreach ($aCardPages As $aCardPage) {
+        foreach ($aCardPages as $aCardPage) {
             $iTotalPages++;
         }
 
@@ -267,19 +330,24 @@ class TutorPHP
         $aCardIDs = array();
         for ($x = 0; $x <= $iTotalPages; $x++) {
             $oHTML = new DOMDocument();
-            $oHTML->loadHTML($this->fetchPage(self::sGathererBaseURL . 'Search/Default.aspx?set=[%22' . rawurlencode($sSetName) . '%22]&page=' . $x));
+            $oHTML->loadHTML(
+                $this->fetchPage(
+                    self::GATHERER_BASE_URL . 'Search/Default.aspx?set=[%22' . rawurlencode(
+                        $sSetName
+                    ) . '%22]&page=' . $x
+                )
+            );
 
             $oXPath = new DOMXPath($oHTML);
             $aCardUrls = $oXPath->query('//span[@class="cardTitle"]/a/@href');
 
-            foreach ($aCardUrls AS $aCard) {
-                $aCardIDs[] = (int) str_replace('../Card/Details.aspx?multiverseid=', '', $aCard->nodeValue);
+            foreach ($aCardUrls as $aCard) {
+                $aCardIDs[] = (int)str_replace('../Card/Details.aspx?multiverseid=', '', $aCard->nodeValue);
             }
         }
 
         sort($aCardIDs);
         return array_unique($aCardIDs);
-
     }
 
 
@@ -292,6 +360,7 @@ class TutorPHP
      */
     public function extractAlternateSide($oXPath)
     {
+        $this->debug('Extracting Cards alternative side');
 
         $this->sPrefix = '_ctl08';
         $aCardDetails['name'] = $this->extractName($oXPath);
@@ -343,7 +412,6 @@ class TutorPHP
 
         $this->sPrefix = '';
         return $aCardDetails;
-
     }
 
 
@@ -356,6 +424,8 @@ class TutorPHP
      */
     public function extractDualSide($sUrl)
     {
+        $this->debug('Extracting Cards dual side: ' . $sUrl);
+
         libxml_clear_errors();
         libxml_use_internal_errors(true);
         $oHTML = new DOMDocument();
@@ -402,7 +472,6 @@ class TutorPHP
         $aCardDetails['community_rating']['votes'] = $this->extractTotalVotes($oXPath);
 
         return $aCardDetails;
-
     }
 
 
@@ -415,13 +484,14 @@ class TutorPHP
      */
     public function isDoubleFaced($oXPath)
     {
+        $this->debug('Determining if card is double faced');
+
         $oAlternativeSide = $oXPath->query('//a[@id="cardTextSwitchLink2"]/ancestor::div/ul/li/a/@href');
         foreach ($oAlternativeSide as $sTmp) {
             return $sTmp->nodeValue;
         }
 
         return false;
-
     }
 
 
@@ -434,13 +504,16 @@ class TutorPHP
      */
     protected function isDoubleSided($oXPathContent)
     {
-        $oXPathResult = $oXPathContent->query('//div[@id="' . self::sDivPrefix . '_ctl07_nameRow"]/div[@class="value"]');
-        foreach ($oXPathResult AS $sResult) {
+        $this->debug('Determining if card is double sided.');
+
+        $oXPathResult = $oXPathContent->query(
+            '//div[@id="' . self::DIV_PREFIX . '_ctl07_nameRow"]/div[@class="value"]'
+        );
+        foreach ($oXPathResult as $sResult) {
             return true;
         }
 
         return false;
-
     }
 
 
@@ -453,9 +526,10 @@ class TutorPHP
      */
     protected function isPlaneswalker($sType = '')
     {
+        $this->debug('Determining if card is a planeswalker.');
+
         $sType = strtolower(trim($sType));
         return ($sType == 'planeswalker');
-
     }
 
 
@@ -468,13 +542,16 @@ class TutorPHP
      */
     protected function extractName($oXPath)
     {
-        $aCardName = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_nameRow"]/div[@class="value"]');
+        $this->debug('Extracting card name.');
+
+        $aCardName = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_nameRow"]/div[@class="value"]'
+        );
         foreach ($aCardName as $sTmp) {
             return trim($sTmp->nodeValue);
         }
 
         return;
-
     }
 
 
@@ -482,13 +559,17 @@ class TutorPHP
      * Extracts the mana cost of the card, using the existing XPath Resource
      *
      * @param object $oXPath
-     *
+     * @throws Exception
      * @return string
      */
     protected function extractManaCost($oXPath)
     {
+        $this->debug('Extracting card mana cost.');
+
         $aCardDetails = array();
-        $aXPathManaSymbols = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_manaRow"]/div[@class="value"]/img/@alt');
+        $aXPathManaSymbols = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_manaRow"]/div[@class="value"]/img/@alt'
+        );
         foreach ($aXPathManaSymbols as $sTmp) {
 
             $sSymbolWithBrace = '{' . trim($sTmp->nodeValue) . '}';
@@ -503,7 +584,6 @@ class TutorPHP
         }
 
         return $aCardDetails;
-
     }
 
 
@@ -516,13 +596,16 @@ class TutorPHP
      */
     protected function extractedConvertedManaCost($oXPath)
     {
-        $aXPathCMC = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_cmcRow"]/div[@class="value"]');
+        $this->debug('Extracting card converted mana cost.');
+
+        $aXPathCMC = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_cmcRow"]/div[@class="value"]'
+        );
         foreach ($aXPathCMC as $sTmp) {
-            return (float) trim($sTmp->nodeValue);
+            return (float)trim($sTmp->nodeValue);
         }
 
         return;
-
     }
 
 
@@ -535,15 +618,18 @@ class TutorPHP
      */
     protected function extractTypes($oXPath)
     {
+        $this->debug('Extracting card types.');
+
         //Extract Types
-        $aXPathTypes = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_typeRow"]/div[@class="value"]');
+        $aXPathTypes = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_typeRow"]/div[@class="value"]'
+        );
         foreach ($aXPathTypes as $sTmp) {
-            return @iconv("UTF-8", "ASCII//TRANSLIT", trim((string) $sTmp->nodeValue));
+            return @iconv("UTF-8", "ASCII//TRANSLIT", trim((string)$sTmp->nodeValue));
             break;
         }
 
         return;
-
     }
 
 
@@ -556,13 +642,16 @@ class TutorPHP
      */
     protected function extractLoyalty($oXPath)
     {
-        $aXPathLoyalty = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_ptRow"]/div[@class="value"]');
+        $this->debug('Extracting card loyalty.');
+
+        $aXPathLoyalty = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_ptRow"]/div[@class="value"]'
+        );
         foreach ($aXPathLoyalty as $sTmp) {
-            return (int) trim($sTmp->nodeValue);
+            return (int)trim($sTmp->nodeValue);
         }
 
         return;
-
     }
 
 
@@ -575,13 +664,14 @@ class TutorPHP
      */
     protected function extractPowerToughness($oXPath)
     {
-        $aXPathPT = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_ptRow"]/div[@class="value"]');
+        $this->debug('Extracting card power/toughness.');
+
+        $aXPathPT = $oXPath->query('//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_ptRow"]/div[@class="value"]');
         foreach ($aXPathPT as $sTmp) {
             return explode(' / ', trim($sTmp->nodeValue));
         }
 
         return;
-
     }
 
 
@@ -594,14 +684,17 @@ class TutorPHP
      */
     protected function extractVersions($oXPath)
     {
+        $this->debug('Extracting card version IDs.');
+
         $aVersions = array();
-        $aXPathSets = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_otherSetsRow"]/div[@class="value"]/div[@id="' . self::sDivPrefix . $this->sPrefix . '_otherSetsValue"]/a/@href');
+        $aXPathSets = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_otherSetsRow"]/div[@class="value"]/div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_otherSetsValue"]/a/@href'
+        );
         foreach ($aXPathSets as $sTmp) {
-            $aVersions[] = (int) trim(str_replace('Details.aspx?multiverseid=', '', $sTmp->nodeValue));
+            $aVersions[] = (int)trim(str_replace('Details.aspx?multiverseid=', '', $sTmp->nodeValue));
         }
 
         return $aVersions;
-
     }
 
 
@@ -614,14 +707,17 @@ class TutorPHP
      */
     protected function extractCommunityRating($oXPath)
     {
-        $aXPathRating = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_currentRating_textRatingContainer"]/span[@id="' . self::sDivPrefix . $this->sPrefix . '_currentRating_textRating"]');
+        $this->debug('Extracting cards community rating');
+
+        $aXPathRating = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_currentRating_textRatingContainer"]/span[@id="' . self::DIV_PREFIX . $this->sPrefix . '_currentRating_textRating"]'
+        );
         foreach ($aXPathRating as $sTmp) {
-            return (float) trim($sTmp->nodeValue);
+            return (float)trim($sTmp->nodeValue);
             break;
         }
 
         return;
-
     }
 
 
@@ -634,14 +730,17 @@ class TutorPHP
      */
     protected function extractTotalVotes($oXPath)
     {
-        $aXPathVotes = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_currentRating_textRatingContainer"]/span[@id="' . self::sDivPrefix . $this->sPrefix . '_currentRating_totalVotes"]');
+        $this->debug('Extracting total votes for the card');
+
+        $aXPathVotes = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_currentRating_textRatingContainer"]/span[@id="' . self::DIV_PREFIX . $this->sPrefix . '_currentRating_totalVotes"]'
+        );
         foreach ($aXPathVotes as $sTmp) {
-            return (int) trim($sTmp->nodeValue);
+            return (int)trim($sTmp->nodeValue);
             break;
         }
 
         return;
-
     }
 
 
@@ -654,8 +753,12 @@ class TutorPHP
      */
     protected function extractAbilityText($oXPath)
     {
+        $this->debug('Extracting cards ability text');
+
         $aText = $aMatches = array();
-        $aXPathText = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_textRow"]/div[@class="value"]/div[@class="cardtextbox"]');
+        $aXPathText = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_textRow"]/div[@class="value"]/div[@class="cardtextbox"]'
+        );
         foreach ($aXPathText as $sTmp) {
             $sLine = trim($this->nodeContent($sTmp));
 
@@ -676,7 +779,6 @@ class TutorPHP
         }
 
         return $aText;
-
     }
 
 
@@ -689,14 +791,17 @@ class TutorPHP
      */
     protected function extractFlavorText($oXPath)
     {
+        $this->debug('Extracting cards flavor text');
+
         $aFlavorAttribution = array();
-        $aXPathFlavorAttribution = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_FlavorText"]/div[@class="cardtextbox"]');
+        $aXPathFlavorAttribution = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_FlavorText"]/div[@class="cardtextbox"]'
+        );
         foreach ($aXPathFlavorAttribution as $sTmp) {
             $aFlavorAttribution[] = trim($sTmp->nodeValue);
         }
 
         return $aFlavorAttribution;
-
     }
 
 
@@ -709,13 +814,16 @@ class TutorPHP
      */
     protected function extractColorIndicator($oXPath)
     {
-        $aXPathColorIndicator = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_colorIndicatorRow"]/div[@class="value"]');
+        $this->debug('Extracting cards color indicator');
+
+        $aXPathColorIndicator = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_colorIndicatorRow"]/div[@class="value"]'
+        );
         foreach ($aXPathColorIndicator as $sTmp) {
             return explode(', ', trim($sTmp->nodeValue));
         }
 
         return;
-
     }
 
 
@@ -728,13 +836,16 @@ class TutorPHP
      */
     protected function extractWatermark($oXPath)
     {
-        $aXPathWatermark = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_markRow"]/div[@class="value"]');
+        $this->debug('Extracting cards watermark');
+
+        $aXPathWatermark = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_markRow"]/div[@class="value"]'
+        );
         foreach ($aXPathWatermark as $sTmp) {
             return trim($sTmp->nodeValue);
         }
 
         return;
-
     }
 
 
@@ -747,13 +858,16 @@ class TutorPHP
      */
     protected function extractExpansion($oXPath)
     {
-        $aXPathSet = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_setRow"]/div[@class="value"]');
+        $this->debug('Extracting cards expansion.');
+
+        $aXPathSet = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_setRow"]/div[@class="value"]'
+        );
         foreach ($aXPathSet as $sTmp) {
             return trim($sTmp->nodeValue);
         }
 
         return;
-
     }
 
 
@@ -766,14 +880,17 @@ class TutorPHP
      */
     protected function extractRarity($oXPath)
     {
-        $aXPathRarity = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_rarityRow"]/div[@class="value"]');
+        $this->debug('Extracting cards rarity.');
+
+        $aXPathRarity = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_rarityRow"]/div[@class="value"]'
+        );
         foreach ($aXPathRarity as $sTmp) {
             return trim($sTmp->nodeValue);
             break;
         }
 
         return;
-
     }
 
 
@@ -786,13 +903,16 @@ class TutorPHP
      */
     protected function extractExpansionNumber($oXPath)
     {
-        $aXPathCardNo = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_numberRow"]/div[@class="value"]');
+        $this->debug('Extracting cards expansion number.');
+
+        $aXPathCardNo = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_numberRow"]/div[@class="value"]'
+        );
         foreach ($aXPathCardNo as $sTmp) {
             return trim($sTmp->nodeValue);
         }
 
         return;
-
     }
 
 
@@ -805,13 +925,16 @@ class TutorPHP
      */
     protected function extractArtist($oXPath)
     {
-        $aXPathArtist = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_artistRow"]/div[@class="value"]');
+        $this->debug('Extracting cards artist.');
+
+        $aXPathArtist = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_artistRow"]/div[@class="value"]'
+        );
         foreach ($aXPathArtist as $sTmp) {
             return trim($sTmp->nodeValue);
         }
 
         return;
-
     }
 
 
@@ -824,13 +947,17 @@ class TutorPHP
      */
     protected function extractRulings($oXPath)
     {
-        $aXPathRulings = $oXPath->query('//div[@id="' . self::sDivPrefix . $this->sPrefix . '_rulingsContainer"]/table/tr');
+        $this->debug('Extracting cards rulings.');
+
+        $aXPathRulings = $oXPath->query(
+            '//div[@id="' . self::DIV_PREFIX . $this->sPrefix . '_rulingsContainer"]/table/tr'
+        );
         $aRulings = '';
         $iRuling = 0;
         foreach ($aXPathRulings as $sTmp) {
             $aXPathRowColumn = $oXPath->query('./td', $sTmp);
             $x = 0;
-            foreach ($aXPathRowColumn AS $sTD) {
+            foreach ($aXPathRowColumn as $sTD) {
                 if ($x === 0) {
                     list($d, $m, $y) = explode('/', $sTD->nodeValue);
                     $aRulings[$iRuling]['date'] = mktime(0, 0, 0, $m, $d, $y);
@@ -843,7 +970,6 @@ class TutorPHP
         }
 
         return $aRulings;
-
     }
 
 
@@ -856,13 +982,14 @@ class TutorPHP
      */
     protected function extractCardID($oXPath)
     {
-        $aXPathCardID = $oXPath->query('//a[@id="' . self::sDivPrefix . $this->sPrefix . '_discussionLink"]/@href');
+        $this->debug('Extracting cards ID.');
+
+        $aXPathCardID = $oXPath->query('//a[@id="' . self::DIV_PREFIX . $this->sPrefix . '_discussionLink"]/@href');
         foreach ($aXPathCardID as $sTmp) {
-            return (int) trim(str_replace('/Pages/Card/Discussion.aspx?multiverseid=', '', $sTmp->nodeValue));
+            return (int)trim(str_replace('/Pages/Card/Discussion.aspx?multiverseid=', '', $sTmp->nodeValue));
         }
 
         return;
-
     }
 
 
@@ -875,6 +1002,8 @@ class TutorPHP
      */
     protected function calculateSuperType($sType)
     {
+        $this->debug('Extracting cards super-types.');
+
         $sType = @iconv("UTF-8", "ASCII//TRANSLIT", $sType);
         $aTypes = explode(' - ', $sType);
 
@@ -884,14 +1013,13 @@ class TutorPHP
 
         $aPrimaryTypes = explode(' ', $aTypes[0]);
 
-        foreach ($aPrimaryTypes AS $sPossibleSupertype) {
-            if (in_array($sPossibleSupertype, $this->aSupertypes)) {
-                return $sPossibleSupertype;
+        foreach ($aPrimaryTypes as $sPossibleSuperType) {
+            if (in_array($sPossibleSuperType, $this->aSuperTypes)) {
+                return $sPossibleSuperType;
             }
         }
 
         return;
-
     }
 
 
@@ -904,15 +1032,16 @@ class TutorPHP
      */
     protected function calculateTypes($sType)
     {
+        $this->debug('Extracting cards type.');
+
         $sType = @iconv("UTF-8", "ASCII//TRANSLIT", $sType);
         $aTypes = explode(' - ', $sType);
 
-        foreach ($this->aSupertypes AS $sSuperType) {
+        foreach ($this->aSuperTypes as $sSuperType) {
             $aTypes[0] = str_replace($sSuperType, '', $aTypes[0]);
         }
 
         return trim($aTypes[0]);
-
     }
 
 
@@ -925,6 +1054,8 @@ class TutorPHP
      */
     protected function calculateSubTypes($sSubtype)
     {
+        $this->debug('Extracting cards subtypes.');
+
         if (strlen($sSubtype) === 0) {
             return array();
         }
@@ -937,7 +1068,6 @@ class TutorPHP
         }
 
         return explode(' ', $aTmp[1]);
-
     }
 
 
@@ -950,6 +1080,8 @@ class TutorPHP
      */
     protected function fetchPage($sUrl)
     {
+        $this->debug('Fetching Page: ' . $sUrl);
+
         $rHandle = curl_init();
         curl_setopt($rHandle, CURLOPT_URL, $sUrl);
         curl_setopt($rHandle, CURLOPT_RETURNTRANSFER, 1);
@@ -962,16 +1094,15 @@ class TutorPHP
         }
 
         return $data;
-
     }
 
 
     /**
-     * Extracts the content of a node, includin any HTML
+     * Extracts the content of a node, including any HTML
      * Borrowed from: http://php.net/manual/en/book.dom.php#89802
      *
      * @param object $oNode
-     * @param booleam $bOuter
+     * @param boolean $bOuter
      * @return string
      */
     protected function nodeContent($oNode, $bOuter = false)
@@ -986,10 +1117,5 @@ class TutorPHP
         }
 
         return $h;
-
     }
-
-
 }
-
-?>
