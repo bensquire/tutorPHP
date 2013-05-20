@@ -103,7 +103,7 @@ class TutorPHP
     /**
      * Fetches an array of card information based on the card ID
      *
-     * @param type $iCardID The Card ID we require information on
+     * @param int $iCardID The Card ID we require information on
      *
      * @throws Exception
      * @return array
@@ -212,7 +212,7 @@ class TutorPHP
         $aCardDetails['gatherer_url'] = self::GATHERER_BASE_URL . 'Card/Details.aspx?multiverseid=' . $iCardID;
 
         //image_url
-        $aCardDetails['image_url'] = $this->fetchCardImageUrl($iCardID);
+        $aCardDetails['image_url'] = $this->fetchCardImageUrl((int) $iCardID);
 
         //Extract Alternate Side (Werewolves, same page)
         if ($bDoubleSided) {
@@ -240,7 +240,7 @@ class TutorPHP
      *
      * @param int $iCardID    The Card ID we want legalities for
      *
-     * @return type
+     * @return array
      * @throws Exception
      */
     public function fetchCardLegalities($iCardID)
